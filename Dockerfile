@@ -9,6 +9,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Adicionar para reduzir logs do TensorFlow
+ENV TF_CPP_MIN_LOG_LEVEL=2
+ENV CUDA_VISIBLE_DEVICES=-1
+
 # Copia e instala as dependências
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
