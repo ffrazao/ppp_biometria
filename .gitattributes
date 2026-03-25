@@ -1,0 +1,2 @@
+weights/retinaface.h5 filter=lfs diff=lfs merge=lfs -text
+weights/facenet_weights.h5 filter=lfs diff=lfs merge=lfs -text
