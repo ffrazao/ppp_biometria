@@ -9,6 +9,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+RUN mkdir -p /root/.deepface/weights
+
+COPY weights/facenet_weights.h5 /root/.deepface/weights/facenet_weights.h5
+
 # Adicionar para reduzir logs do TensorFlow
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV CUDA_VISIBLE_DEVICES=-1
