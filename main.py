@@ -65,7 +65,7 @@ def base64_to_cv2(base64_str: str):
     """Converte a string Base64 do React para uma imagem legível pelo OpenCV"""
     try:
         if "," in base64_str:
-            base64_str = base64_str.split(",")[3]
+            base64_str = base64_str.split(",", 1)[1]
         img_data = base64.b64decode(base64_str)
         nparr = np.frombuffer(img_data, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
