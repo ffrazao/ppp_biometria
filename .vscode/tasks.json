@@ -1,0 +1,39 @@
+{
+   "version":"2.0.0",
+   "tasks":[
+      {
+         "label":"Criar virtualenv",
+         "type":"shell",
+         "command":"python3 -m venv .venv",
+         "problemMatcher":[
+            
+         ]
+      },
+      {
+         "label":"Instalar dependências",
+         "type":"shell",
+         "command":". .venv/bin/activate && python -m pip install --
+upgrade pip setuptools wheel && pip install -r requirements.txt",
+         "problemMatcher":[
+            
+         ]
+      },
+      {
+         "label":"Rodar aplicação local",
+         "type":"shell",
+         "command":". .venv/bin/activate && python main.py",
+         "problemMatcher":[
+            
+         ]
+      },
+      {
+         "label":"Rodar Uvicorn local",
+         "type":"shell",
+         "command":". .venv/bin/activate && uvicorn main:app --host
+0.0.0.0 --port 8000 --reload",
+         "problemMatcher":[
+            
+         ]
+      }
+   ]
+}
