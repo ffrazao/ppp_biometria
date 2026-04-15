@@ -9,9 +9,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Cria o diretório de destino para os pesos
 RUN mkdir -p /root/.deepface/weights
 
-COPY weights/facenet_weights.h5 /root/.deepface/weights/facenet_weights.h5
+# AJUSTE AQUI: Copia TODOS os arquivos .h5 da pasta weights local
+# para a pasta de pesos do DeepFace dentro do container
+COPY weights/*.h5 /root/.deepface/weights/
 
 # Adicionar para reduzir logs do TensorFlow
 ENV TF_CPP_MIN_LOG_LEVEL=2
@@ -19,13 +22,21 @@ ENV CUDA_VISIBLE_DEVICES=-1
 
 # Copia e instala as dependências
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o código fonte
 COPY main.py .
 
-# Força o DeepFace a baixar os pesos da rede neural na build para inicializar instantaneamente depois
-RUN python -c "from deepface import DeepFace; DeepFace.build_model('Facenet')"
+# Força o DeepFace a pré-carregar os modelos necessários.
+# Como você agora tem dois pesos, você pode adicionar a build do segundo modelo aqui se desejar.
+# RUN python -c "from deepface import DeepFace; \DeepFace.build_model('Facenet'); DeepFace.build_model('VGG-Face')"
+
+# Força o DeepFace a inicializar os modelos usando os arquivos locais
+RUN python -c "from deepface import DeepFace; \
+               import numpy as np; \
+               DeepFace.build_model('Facenet'); \
+               DeepFace.extract_faces(img_path=np.zeros((100, 100, 3), dtype=np.uint8), detector_backend='retinaface', enforce_detection=False)"
 
 # Expõe a porta do FastAPI
 EXPOSE 8000
