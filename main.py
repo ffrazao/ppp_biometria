@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
 import logging
 from logging.handlers import RotatingFileHandler
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from deepface import DeepFace
-import base64
 import cv2
 import numpy as np
 import uuid
@@ -77,54 +76,35 @@ logger.info("Aplicação iniciando...")
 logger.info(f"Modelo biométrico configurado: {MODEL_NAME}")
 
 # --- DTOs de Entrada ---
-class ExtractRequest(BaseModel):
-    image_base64: str
-
-
-class VerifyRequest(BaseModel):
-    image_base64_1: str  # Foto do cadastro (Referência)
-    image_base64_2: str  # Foto tirada no momento do ponto (Captura)
 
 
 # --- Funções Auxiliares ---
-def base64_to_cv2(base64_str: str):
-    """Converte a string Base64 do React para uma imagem legível pelo OpenCV"""
-    try:
-        if "," in base64_str:
-            base64_str = base64_str.split(",", 1)[1]
-        img_data = base64.b64decode(base64_str)
-        nparr = np.frombuffer(img_data, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None:
-            raise ValueError("Imagem decodificada resultou em None")
-        return img
-    except Exception as e:
-        logger.exception("Erro ao converter imagem Base64 para OpenCV")
-        raise HTTPException(
-            status_code=400, detail=f"Erro ao processar imagem Base64: {str(e)}"
-        )
-
 def get_embedding(img):
     result = DeepFace.represent(
         img_path=img,
-        model=MODEL,
+        model_name=MODEL_NAME,   # ← era: model=MODEL
         enforce_detection=True,
         detector_backend="retinaface"
     )
-    
+
     if not result:
         raise ValueError("Nenhum rosto detectado")
 
-    # Dependendo da versão do DeepFace, pode vir lista
     if isinstance(result, list):
         return result[0]["embedding"]
 
     return result["embedding"]
 
+def bytes_to_cv2(raw_bytes: bytes):
+    nparr = np.frombuffer(raw_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(status_code=400, detail="Imagem inválida ou corrompida")
+    return img
 
 # --- Endpoints da API ---
 @app.post("/api/v1/biometria/extract")
-async def extract_template(request: ExtractRequest):
+async def extract_template(image_bytes: UploadFile = File(...)):
     """Extrai o vetor matemático da face (Embedding) para salvar no banco (RFC-0003)"""
 
     logger.info("Requisição recebida: /api/v1/biometria/extract")
@@ -133,7 +113,8 @@ async def extract_template(request: ExtractRequest):
         logger.error("Modelo não carregado")
         raise HTTPException(status_code=500, detail="Modelo de IA não inicializado")
 
-    img = base64_to_cv2(request.image_base64)
+    raw_bytes = await image_bytes.read()
+    img = bytes_to_cv2(raw_bytes)
 
     try:
         # Extrai o template usando a IA
@@ -142,10 +123,12 @@ async def extract_template(request: ExtractRequest):
         logger.info("Template facial extraído com sucesso")
 
         return {"status": "success", "template_vector": result}
+
     except ValueError as e:
         # Aqui capturamos a mensagem exata da biblioteca
         logger.warning(f"Falha na detecção facial: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Erro de detecção: {str(e)}")
+
     except Exception:
         logger.exception("Erro inesperado ao extrair template facial")
         raise HTTPException(
@@ -153,7 +136,10 @@ async def extract_template(request: ExtractRequest):
         )
 
 @app.post("/api/v1/biometria/verify")
-async def verify_face(request: VerifyRequest):
+async def verify_face(
+    image_bytes_1: UploadFile = File(...),
+    image_bytes_2: UploadFile = File(...)
+):
     """Compara duas imagens e retorna se é a mesma pessoa e o score de risco"""
 
     logger.info("Requisição recebida: /api/v1/biometria/verify")
@@ -162,8 +148,11 @@ async def verify_face(request: VerifyRequest):
         logger.error("Modelo não carregado")
         raise HTTPException(status_code=500, detail="Modelo de IA não inicializado")
 
-    img1 = base64_to_cv2(request.image_base64_1)
-    img2 = base64_to_cv2(request.image_base64_2)
+    bytes1 = await image_bytes_1.read()
+    bytes2 = await image_bytes_2.read()
+
+    img1 = bytes_to_cv2(bytes1)
+    img2 = bytes_to_cv2(bytes2)
 
     try:
         # 1. executa a comparação facial
@@ -189,9 +178,9 @@ async def verify_face(request: VerifyRequest):
 
         return {
             "status": "success",
-            "is_match": is_match,
-            "biometric_score": round(biometric_score, 2),
-            "distance": round(distance, 4),
+            "is_match": bool(is_match),
+            "biometric_score": float(round(biometric_score, 2)),
+            "distance": float(round(distance, 4)),
             "tecnico_falha": False,
         }
 

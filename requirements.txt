@@ -6,3 +6,4 @@ tensorflow==2.15.0
 tf-keras==2.15.0
 deepface==0.0.86
 debugpy==1.8.1
+python-multipart==0.0.9
