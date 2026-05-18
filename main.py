@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 from logging.handlers import RotatingFileHandler
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 import numpy as np
 from deepface import DeepFace
@@ -207,7 +207,7 @@ async def compare_file(
 
 @app.post("/api/v1/biometria/compare_template")
 async def compare_template(
-    template_1: str = File(...),   # vetor JSON enviado como campo de formulário
+    template_1: str = Form(...),   # vetor JSON enviado como campo de formulário
     image_2: UploadFile = File(...),
 ):
     """Recebe um vetor biométrico já extraído e um arquivo de imagem e devolve o score."""
